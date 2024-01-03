@@ -11,6 +11,7 @@
         "vite": "^5.0.0"
     },
     "dependencies": {
+        "@fullcalendar/daygrid": "^6.1.10",
         "fullcalendar": "^6.1.10"
     }
 }
