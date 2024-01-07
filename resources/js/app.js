@@ -12,6 +12,8 @@ document.addEventListener('DOMContentLoaded', function() {
         timeZone: 'UTC',
         initialView: 'timeGridDay',
         events: '/events',
+        slotMinTime: '10:00:00',
+        slotMaxTime: '19:00:00',
         selectable: true,
         selectMirror: true,
         unselectAuto: true,
@@ -19,7 +21,7 @@ document.addEventListener('DOMContentLoaded', function() {
             var customerName = window.prompt('Ügyfél neve:');
             var startDate = reservation.start;
             var endDate = reservation.end;
-            
+
             fetch('/create-event', {
                 method: 'POST',
                 headers: {
