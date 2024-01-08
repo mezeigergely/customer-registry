@@ -18,6 +18,7 @@ class EventController extends Controller
 
     public function createEvent(Request $request)
     {
+        // test
         try {
             $request->validate([
                 'title' => 'required|string|max:255',
