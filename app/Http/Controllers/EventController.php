@@ -13,12 +13,17 @@ class EventController extends Controller
     public function index()
     {
         $events = Event::all();
+        $events->transform(function ($event) {
+            if ($event->daysOfWeek === null) {
+                unset($event->daysOfWeek, $event->startTime, $event->endTime);
+            }
+            return $event;
+        });
         return response()->json($events);
     }
 
     public function createEvent(Request $request)
     {
-        // test
         try {
             $request->validate([
                 'title' => 'required|string|max:255',
@@ -26,15 +31,36 @@ class EventController extends Controller
                 'end' => 'required|string|max:255',
             ]);
 
-            $slotTimeChecker = $this->isValidSlotTime($request->input('start'), $request->input('end'));
+            $title = $request->input('title');
+            $start = $request->input('start');
+            $end = $request->input('end');
+            $daysOfWeek = $request->daysOfWeek;
+            foreach ($daysOfWeek as $day){
+                if(empty($day)){
+                    $daysOfWeek = NULL;
+                }
+                else{
+                    $daysOfWeek = json_encode($request->daysOfWeek);
+                }
+            }
+            $startTime = Carbon::parse($start)->format('H:i:s');
+            $endTime = Carbon::parse($end)->format('H:i:s');
+
+            $slotTimeChecker = $this->isValidSlotTime($start, $end);
 
             if($slotTimeChecker){
                 $event = new Event();
-                $event->title = $request->input('title');
-                $event->start = $request->input('start');
-                $event->end = $request->input('end');
+                $event->title = $title;
+                $event->start = $start;
+                $event->end = $end;
+                $event->startTime = $startTime;
+                $event->endTime = $endTime;
+                $event->daysOfWeek = $daysOfWeek;
                 $event->save();
-                return response()->json(['message' => $request->input('title').' nevű időpontja rögzítésre került!'], 200);
+                return response()->json([
+                    'message' => $request->input('title').
+                    ' nevű időpontja rögzítésre került!'], 200
+                );
             }
 
             return response()->json(['message' => 'Hiba!'], 400);
@@ -70,6 +96,7 @@ class EventController extends Controller
 
     protected function isSlotReserved($start, $end)
     {
+        //TODO: szabály kidolgozás az ismétlődésekhez!
         return !Event::where(function ($query) use ($start, $end) {
             $query->where('start', '<', $end)
                   ->where('end', '>', $start);

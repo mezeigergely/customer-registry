@@ -25,7 +25,7 @@ document.addEventListener('DOMContentLoaded', function() {
             var customerName;
             var startDate = reservation.start;
             var endDate = reservation.end;
-            var daysOfWeek = reservation.daysOfWeek;
+            var daysOfWeek = [];
             var recurrence;
             var customerNameSwal = {
                 title: 'Ügyfél neve:',
