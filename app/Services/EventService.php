@@ -69,12 +69,12 @@ class EventService
         return $newEvent;
     }
 
-    protected function saveSimpleEvent($title, $start, $end, $duration)
+    protected function saveSimpleEvent(string $title, string $start, string $end, string $duration)
     {
         $this->saveEvent($title, $start, $end, null, $duration);
     }
 
-    protected function saveEvent($title, $start, $end, $rrule, $duration)
+    protected function saveEvent(string $title, string $start, string $end, ?string $rrule, string $duration) : bool
     {
         $event = new Event();
         $event->title = $title;
@@ -87,7 +87,7 @@ class EventService
         return true;
     }
 
-    public function isValidSlotTime($start, $end)
+    public function isValidSlotTime(string $start, string $end) : bool
     {
         $carbonStart = Carbon::parse($start);
         $carbonEnd = Carbon::parse($end);
@@ -109,7 +109,7 @@ class EventService
         return false;
     }
 
-    protected function calcDuration($start, $end)
+    protected function calcDuration(string $start, string $end) : string
     {
         $startTime = Carbon::parse($start);
         $endTime = Carbon::parse($end);

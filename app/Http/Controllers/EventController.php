@@ -9,9 +9,9 @@ use App\Transformers\EventTransformer;
 
 class EventController extends Controller
 {
-    protected $eventRepository;
-    protected $eventService;
-    protected $eventTransformer;
+    protected EventRepository $eventRepository;
+    protected EventService $eventService;
+    protected EventTransformer $eventTransformer;
 
     public function __construct(
         EventRepository $eventRepository,
@@ -62,8 +62,7 @@ class EventController extends Controller
                         $byDay))
                 {
                     return response()->json([
-                        'message' => $request->input('title').
-                        ' nevű időpontja rögzítésre került!'], 200
+                        'message' => 'Sikeres bejegyzés'], 200
                     );
                 }
             }
