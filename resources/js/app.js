@@ -7,21 +7,17 @@ import rrulePlugin from '@fullcalendar/rrule';
 import '../css/app.css';
 
 document.addEventListener('DOMContentLoaded', function() {
-  
-
     const csrfToken = document.head.querySelector('meta[name="csrf-token"]').content;
     var calendarEl = document.getElementById('calendar');
     var calendar = new Calendar(calendarEl, {
         plugins: [ dayGridPlugin, timeGridPlugin, interactionPlugin, rrulePlugin ],
-        timeZone: 'UTC',
-        initialView: 'timeGridDay',
+        timeZone: 'CET',
+        initialView: 'timeGridWeek',
         events: '/events',
-        businessHours: {
-            startTime: '10:00',
-            endTime: '19:00',
-            daysOfWeek: [1, 2, 3, 4, 5]
-        },
+        slotMinTime: '10:00',
+        slotMaxTime: '19:00',
         weekNumbers: true,
+        weekends: false,
         selectable: true,
         selectMirror: true,
         unselectAuto: true,
@@ -145,13 +141,28 @@ document.addEventListener('DOMContentLoaded', function() {
                     specWeek: specWeek
                 }),
               })
-              .then(response => response.json())
+              .then(response => {
+                if (response.ok) {
+                    return response.json();
+                } else {
+                    throw new Error(`HTTP error! Status: ${response.status}`);
+                }
+              })
               .then(data => {
                   calendar.refetchEvents();
-                  alert(data.message);
+                  Swal.fire({
+                    title: data.message,
+                    text: formatSwalText(title, start, end),
+                    icon: "success"
+                  });
               })
               .catch(error => {
-                  console.error('Error:', error);
+                console.error('Error:', error);
+                Swal.fire({
+                    title: 'Hiba',
+                    text: error.message,
+                    icon: 'error'
+                });
               })
             }
           });
@@ -165,6 +176,10 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     });
     calendar.render();
+
+    function formatSwalText(title, start, end) {
+      return '(' + title + ') ' + formatTitle(start, end)
+    }
 
     function formatTitle(startStr, endStr) {
       var startDate = new Date(startStr);
