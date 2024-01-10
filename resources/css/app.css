@@ -1,0 +1,28 @@
+.inputStyle{
+    display: flex;
+    align-items: center;
+    padding: 1rem 0.5rem;
+    justify-content: flex-start;
+}
+
+.swal2-title{
+    font-size: 1.4rem;
+}
+
+.swal2-input{
+    margin: 0 !important;
+    height: 2rem !important;
+    width: auto;
+}
+
+#customFreqInterval{
+    width: 5rem !important;
+}
+
+#customFreqSelect{
+    margin-left: 0.5rem;
+}
+
+label{
+    margin-right: 1rem;
+}

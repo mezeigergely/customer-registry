@@ -13,5 +13,7 @@ class Event extends Model
         'title',
         'start',
         'end',
+        'rrule',
+        'duration'
     ];
 }

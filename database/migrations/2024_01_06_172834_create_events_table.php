@@ -13,9 +13,8 @@ class CreateEventsTable extends Migration
             $table->string('title');
             $table->string('start');
             $table->string('end');
-            $table->json('daysOfWeek')->nullable();
-            $table->string('startTime');
-            $table->string('endTime');
+            $table->string('rrule')->nullable();
+            $table->time('duration');
             $table->timestamps();
         });
     }
