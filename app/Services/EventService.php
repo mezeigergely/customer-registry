@@ -4,141 +4,223 @@ namespace App\Services;
 
 use App\Models\Event;
 use App\Repositories\EventRepository;
-use App\Transformers\EventTransformer;
 use Illuminate\Support\Facades\Config;
 use Carbon\Carbon;
 
 class EventService
 {
     protected EventRepository $eventRepository;
-    protected EventTransformer $eventTransformer;
     protected string $openingTime;
     protected string $closingTime;
 
-    public function __construct(
-        EventRepository $eventRepository,
-        EventTransformer $eventTransformer
-    ) {
+    function __construct(EventRepository $eventRepository)
+    {
         $this->eventRepository = $eventRepository;
-        $this->eventTransformer = $eventTransformer;
         $this->openingTime = Config::get('working_hours.opening_time');
         $this->closingTime = Config::get('working_hours.closing_time');
     }
 
-    public function createEvent(
-        string $title,
-        string $start,
-        string $end,
-        ?string $freq,
-        int $interval,
-        ?string $specWeek,
-        ?array $byDay
-    ): bool {
+    function createEvent(array $eventData): bool
+    {
+        $title = $eventData['title'];
+        $start = $eventData['start'];
+        $end = $eventData['end'];
+        $recurrance = $eventData['recurrance'];
         $carbonStart = Carbon::parse($start);
         $carbonEnd = Carbon::parse($end);
-        $duration = $this->calcDuration($start, $end);
+        $until = $eventData['until'];
+        
+        if($this->isSameDay($carbonStart, $carbonEnd)){
+            $carbonUntil = Carbon::parse($until);
 
-        if(isset($specWeek)){
-            $weekOfYear = $carbonStart->weekOfYear;
-            switch($specWeek){
-                case 'ODD_WEEKLY':
-                    if($weekOfYear % 2 == 0){
-                        $this->saveSimpleEvent($title,$start,$end,$duration);
-                        $carbonStart->addWeek();
-                        $carbonEnd->addWeek();
-                    }
-                    break;
+            if($recurrance){
+                $eventRequests = array();
 
-                case 'EVEN_WEEKLY':
-                    if($weekOfYear % 2 != 0){
-                        $this->saveSimpleEvent($title,$start,$end,$duration);
-                        $carbonStart->addWeek();
-                        $carbonEnd->addWeek();
-                    }
-                    break;
+                switch($recurrance){
+                    case 'EVEN_WEEKLY':
+                        if(!$this->isEvenWeek($carbonStart)){
+                            $carbonStart = $carbonStart->addWeek();
+                            $carbonEnd = $carbonEnd->addWeek();
+                            $start = $carbonStart->format('Y-m-d\TH:i:s.v\Z');
+                            $end = $carbonEnd->format('Y-m-d\TH:i:s.v\Z');
+                        }
+
+                        $eventRequestData = $this->createEventRequestData($start, $end, $carbonUntil);
+                        $eventRequests = $this->fillEventRequests($eventRequestData, 2, 0);
+                        $success = false;
+
+                        foreach ($eventRequests as $eventRequest){
+                            if (!$this->isDateAvailable($eventRequest['start'], $eventRequest['end'])){
+                                break;
+                            }
+                            else {
+                                Event::create([
+                                    'title' => $eventData['title'],
+                                    'start' => $eventRequest['start'],
+                                    'end' => $eventRequest['end'],
+                                    'until' => $until,
+                                    'recurrance' => $recurrance,
+                                    'day' => $eventRequest['day'],
+                                    'inside_day' => $eventRequest['inside_day'],
+                                ]);
+                                $success = true;
+                            }
+                        }
+
+                        if($success) {
+                            return true;
+                        }
+
+                        return false;
+                        break;
+                    
+                    case 'ODD_WEEKLY':
+                        if($this->isEvenWeek($carbonStart)){
+                            $carbonStart = $carbonStart->addWeek();
+                            $carbonEnd = $carbonEnd->addWeek();
+                            $start = $carbonStart->format('Y-m-d\TH:i:s.v\Z');
+                            $end = $carbonEnd->format('Y-m-d\TH:i:s.v\Z');
+                        }
+
+                        $eventRequestData = $this->createEventRequestData($start, $end, $carbonUntil);
+                        $eventRequests = $this->fillEventRequests($eventRequestData, 2, 0);
+                        $success = false;
+
+                        foreach ($eventRequests as $eventRequest){
+                            if (!$this->isDateAvailable($eventRequest['start'], $eventRequest['end'])){
+                                break;
+                            }
+                            else {
+                                Event::create([
+                                    'title' => $eventData['title'],
+                                    'start' => $eventRequest['start'],
+                                    'end' => $eventRequest['end'],
+                                    'until' => $until,
+                                    'recurrance' => $recurrance,
+                                    'day' => $eventRequest['day'],
+                                    'inside_day' => $eventRequest['inside_day'],
+                                ]);
+                                $success = true;
+                            }
+                        }
+
+                        if($success) {
+                            return true;
+                        }
+
+                        return false;
+                        break;
+                    
+                    default:
+                        $eventRequestData = $this->createEventRequestData($start, $end, $carbonUntil);
+                        $eventRequests = $this->fillEventRequests($eventRequestData, 1, 1);
+                        $success = false;
+
+                        foreach ($eventRequests as $eventRequest){
+                            if (!$this->isDateAvailable($eventRequest['start'], $eventRequest['end'])){
+                                break;
+                            }
+                            else {
+                                Event::create([
+                                    'title' => $eventData['title'],
+                                    'start' => $eventRequest['start'],
+                                    'end' => $eventRequest['end'],
+                                    'until' => $until,
+                                    'recurrance' => $recurrance,
+                                    'day' => $eventRequest['day'],
+                                    'inside_day' => $eventRequest['inside_day'],
+                                ]);
+                                $success = true;
+                            }
+                        }
+
+                        if($success){
+                            return true;
+                        }
+
+                        return false;
+                }
             }
-            $interval = 2;
-            $start = $carbonStart->format('Y-m-d\TH:i:s.v\Z');
-            $end = $carbonEnd->format('Y-m-d\TH:i:s.v\Z');
+            if($this->isDateAvailable($start, $end)){
+                Event::create([
+                    'title' => $title,
+                    'start' => $start,
+                    'end' => $end,
+                    'until' => $end,
+                    'recurrance' => $recurrance,
+                    'day' => $carbonStart->getTranslatedDayName(),
+                    'inside_day' => $carbonStart->format('H:i:s').' - '.$carbonEnd->format('H:i:s'),
+                ]);
+                return true;
+            }
         }
-
-        $rrule = $this->generateRRule($freq, $carbonStart, $interval, $byDay);
-
-        $newEvent = $this->saveEvent($title, $start, $end, $rrule, $duration);
-
-        return $newEvent;
+        
+        return false;   
     }
 
-    protected function saveSimpleEvent(string $title, string $start, string $end, string $duration)
+    static function isSameDay(Carbon $start, Carbon $end)
     {
-        $this->saveEvent($title, $start, $end, null, $duration);
+        return $start->format('Y-m-d') == $end->format('Y-m-d');
     }
 
-    protected function saveEvent(string $title, string $start, string $end, ?string $rrule, string $duration) : bool
+    static function isEvenWeek(Carbon $date) : bool
     {
-        $event = new Event();
-        $event->title = $title;
-        $event->start = $start;
-        $event->end = $end;
-        $event->rrule = $rrule;
-        $event->duration = $duration;
-        $event->save();
-
-        return true;
+        $weekNumber = $date->weekOfYear;
+        return $weekNumber % 2 === 0;
     }
 
-    public function isValidSlotTime(string $start, string $end) : bool
+    protected function createEventRequestData(string $start, string $end, Carbon $until)
     {
-        $carbonStart = Carbon::parse($start);
-        $carbonEnd = Carbon::parse($end);
+        return ['start' => $start,'end' => $end,'until' => $until];
+    }
 
-        $startInWorkingHours = $carbonStart->between(
-            Carbon::parse($carbonStart->toDateString() . ' ' . $this->openingTime),
-            Carbon::parse($carbonStart->toDateString() . ' ' . $this->closingTime)
-        );
-    
-        $endInWorkingHours = $carbonEnd->between(
-            Carbon::parse($carbonEnd->toDateString() . ' ' . $this->openingTime),
-            Carbon::parse($carbonEnd->toDateString() . ' ' . $this->closingTime)
-        );
-    
-        if($startInWorkingHours && $endInWorkingHours){
+    protected function fillEventRequests(array $eventRequestData, int $addWeekValue, int $totalIteration) : array
+    {
+        $carbonStart = Carbon::parse($eventRequestData['start']);
+        $carbonEnd = Carbon::parse($eventRequestData['end']);
+        $carbonUntil = $eventRequestData['until'];
+
+        $eventRequests = array();
+        $weeksBetweenStartAndUntil = $carbonUntil->diffInWeeks($carbonStart);
+        for ($i = 0 ; $i < ($weeksBetweenStartAndUntil + $totalIteration); $i++)
+        {
+            if($carbonStart < $carbonUntil){
+                $eventRequests[] = [
+                    'start' => $eventRequestData['start'],
+                    'end' => $eventRequestData['end'],
+                    'day' => $carbonStart->getTranslatedDayName(),
+                    'inside_day' => $carbonStart->format('H:i:s').' - '.$carbonEnd->format('H:i:s')
+                ];
+                $carbonStart->addWeek($addWeekValue);
+                $carbonEnd->addWeek($addWeekValue);
+                $eventRequestData['start'] = $carbonStart->format('Y-m-d\TH:i:s.v\Z');
+                $eventRequestData['end'] = $carbonEnd->format('Y-m-d\TH:i:s.v\Z');
+            }
+        }
+        
+        return $eventRequests;
+    }
+
+    protected function isDateAvailable(string $start, string $end) : bool
+    {
+        $startTimeChecker = $this->isWithinTheOpeningHours($start);
+        $endTimeChecker = $this->isWithinTheOpeningHours($end);
+   
+        if($startTimeChecker && $endTimeChecker){
             return $this->eventRepository->isSlotReserved($start, $end);
         }
 
         return false;
     }
 
-    protected function calcDuration(string $start, string $end) : string
+    protected function isWithinTheOpeningHours(string $date) : bool
     {
-        $startTime = Carbon::parse($start);
-        $endTime = Carbon::parse($end);
+        $carbonDate = Carbon::parse($date);
+        $result = $carbonDate->between(
+            $carbonDate->toDateString() . ' ' . $this->openingTime,
+            $carbonDate->toDateString() . ' ' . $this->closingTime
+        );
 
-        return $endTime->diff($startTime)->format('%H:%I:%S');
-    }
-
-    protected function generateRRule(?string $freq, Carbon $carbonStart, int $interval, ?array $byDay): ?string
-    {
-        if ($freq === null) {
-            return null;
-        }
-
-        $rrule = "DTSTART:" . $this->eventTransformer->convertToDtstart($carbonStart->timestamp);
-        $rrule .= "\\nRRULE:FREQ=" . $freq . ";INTERVAL=" . $interval;
-
-        if ($byDay !== null) {
-            $rrule .= ';BYDAY=';
-            $count = count($byDay);
-            $i = 0;
-
-            foreach ($byDay as $day) {
-                $rrule .= $day;
-                if (++$i < $count) {
-                    $rrule .= ',';
-                }
-            }
-        }
-
-        return $rrule;
+        return $result;
     }
 }

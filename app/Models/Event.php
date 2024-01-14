@@ -13,7 +13,9 @@ class Event extends Model
         'title',
         'start',
         'end',
-        'rrule',
-        'duration'
+        'until',
+        'recurrance',
+        'day',
+        'inside_day'
     ];
 }

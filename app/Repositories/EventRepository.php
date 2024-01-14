@@ -6,12 +6,12 @@ use App\Models\Event;
 
 class EventRepository
 {
-    public function getAll()
+    function getAll()
     {
-        return Event::select('title', 'start', 'end', 'rrule', 'duration')->get();
+        return Event::all();
     }
 
-    public function isSlotReserved($start, $end)
+    function isSlotReserved($start, $end)
     {
         return !Event::where(function ($query) use ($start, $end) {
             $query->where('start', '<', $end)

@@ -3,92 +3,61 @@ import { Calendar } from '@fullcalendar/core';
 import dayGridPlugin from '@fullcalendar/daygrid';
 import timeGridPlugin from '@fullcalendar/timegrid'
 import interactionPlugin from '@fullcalendar/interaction';
-import rrulePlugin from '@fullcalendar/rrule';
 import '../css/app.css';
 
 document.addEventListener('DOMContentLoaded', function() {
     const csrfToken = document.head.querySelector('meta[name="csrf-token"]').content;
     var calendarEl = document.getElementById('calendar');
     var calendar = new Calendar(calendarEl, {
-        plugins: [ dayGridPlugin, timeGridPlugin, interactionPlugin, rrulePlugin ],
-        timeZone: 'CET',
+        plugins: [ dayGridPlugin, timeGridPlugin, interactionPlugin],
+        timeZone: 'UTC',
         initialView: 'timeGridWeek',
         events: '/events',
-        slotMinTime: '10:00',
-        slotMaxTime: '19:00',
+        slotMinTime: '08:00',
+        slotMaxTime: '20:00',
         weekNumbers: true,
         weekends: false,
         selectable: true,
         selectMirror: true,
         unselectAuto: true,
         select: function (reservation) {
-          var setRecurrenceSwal = {
+          var setRecurranceSwal = {
             title: formatTitle(reservation.startStr, reservation.endStr),
             html: `  
                 <div class="inputStyle">
-                  <label for="title">Ügyfél neve:</label>
+                  <label for="title">Ügyfél neve:*</label>
                   <input type="text" name="title" class="swal2-input" id="title">
                 </div>
                 <div class="inputStyle">
                   <label for="freq">Ismétlődés:</label>
                   <select name="freq" id="freqSelect">
                     <option value="">Soha</option>
-                    <option value="DAILY">Naponta</option>
-                    <option value="WEEKLY">Hetente</option>
+                    <option value="WEEKLY">Minden héten</option>
+                    <option value="EVEN_WEEKLY">Minden páros héten</option>
+                    <option value="ODD_WEEKLY">Minden páratlan héten</option>
                   </select>
                 </div>
-                <div class="" id="specFreq">
-                  <label for="byDay">Speciális napokon:</label>
-                  <input type="checkbox" id="byDayMo" name="byDayMo" value="MO">
-                  <label for="byDayMo">H</label>
-                  <input type="checkbox" id="byDayTu" name="byDayTu" value="TU">
-                  <label for="byDayTu">K</label>
-                  <input type="checkbox" id="byDayWe" name="byDayWe" value="WE">
-                  <label for="byDayWe">Sz</label>
-                  <input type="checkbox" id="byDayTh" name="byDayTh" value="TH">
-                  <label for="byDayTh">Cs</label>
-                  <input type="checkbox" id="byDayFr" name="byDayFr" value="FR">
-                  <label for="byDayFr">P</label>
-                </div>
                 <div class="inputStyle">
-                  <div class="" id="specWeek">
-                    <label for="specWeek">Speciális heteken:</label>
-                    <select name="specWeek" id="specWeekSelect">
-                      <option value="" disabled selected>Válassz egy lehetőséget</option>
-                      <option value="ODD_WEEKLY">Páratlan hetente</option>
-                      <option value="EVEN_WEEKLY">Páros hetente</option>
-                    </select>
+                  <div id="untilDiv">
+                    <label for="until" id="untilLabel">Eddig:*</label>
+                    <input type="date" id="until" name="until"/>
                   </div>
                 </div>
                 `,
             willOpen: () => {
               const freqSelect = document.getElementById('freqSelect');
-              const specFreq = document.getElementById('specFreq');
-              const checkboxes = document.querySelectorAll('#specFreq input[type="checkbox"]');
-              const specWeek = document.getElementById('specWeek');
-              var specWeekSelect = document.getElementById('specWeekSelect');
-              specFreq.style.display = 'none';
-              specWeek.style.display = 'none';
+              var untilDiv = document.getElementById('untilDiv');
+              var untilInput = document.getElementById('until');
+              untilInput.min = untilMin(reservation.start);
+              untilDiv.style.display = 'none';
+
               freqSelect.addEventListener('change', (event) => {
-                if(event.target.value == 'DAILY'){
-                  specFreq.style.display = 'flex';
-                  checkboxes.forEach(checkbox => {
-                    checkbox.checked = false;
-                  });
-                  specWeek.style.display = 'none';
-                  specWeekSelect.value = '';
-                }
-                else if (event.target.value == 'WEEKLY'){
-                  specFreq.style.display = 'flex';
-                  specWeek.style.display = 'flex';
+                if(event.target.value){
+                  untilDiv.style.display = 'flex';
                 }
                 else{
-                  specFreq.style.display = 'none';
-                  checkboxes.forEach(checkbox => {
-                    checkbox.checked = false;
-                  });
-                  specWeek.style.display = 'none';
-                  specWeekSelect.value = '';
+                  untilDiv.style.display = 'none';
+                  untilInput.value = '';
                 }
               });
             },
@@ -97,35 +66,12 @@ document.addEventListener('DOMContentLoaded', function() {
             cancelButtonText: 'Mégse'
           };
 
-          Swal.fire(setRecurrenceSwal).then((result) => {
+          Swal.fire(setRecurranceSwal).then((result) => {
             if (result.isConfirmed) {
-              const checkboxes = document.querySelectorAll('#specFreq input[type="checkbox"]');
-              const selectedDays = [];
-              checkboxes.forEach(checkbox => {
-                if (checkbox.checked) {
-                  selectedDays.push(checkbox.value);
-                } else {
-                  const index = selectedDays.indexOf(checkbox.value);
-                  if (index !== -1) {
-                    selectedDays.splice(index, 1);
-                  }
-                }
-              });
-
               const title = document.getElementById('title').value;
               const start = reservation.start;
               const end = reservation.end;
-              var freq = freqSelect.value;
-              var specWeek = specWeekSelect.value;
-              /*fetch('/events')
-              .then(response => response.json())
-              .then(data => {
-                // Itt kezeld meg a visszakapott adatokat
-                console.log(data);
-              })
-              .catch(error => {
-                console.error('Error:', error);
-              });*/
+
               fetch('/create-event', {
                 method: 'POST',
                 headers: {
@@ -133,19 +79,18 @@ document.addEventListener('DOMContentLoaded', function() {
                     'X-CSRF-TOKEN': csrfToken,
                 },
                 body: JSON.stringify({
-                    title: title,
-                    start: start,
-                    end: end,
-                    freq: freq,
-                    byDay: selectedDays,
-                    specWeek: specWeek
+                  title: title,
+                  start: start,
+                  end: end,
+                  recurrance: freqSelect.value,
+                  until: until.value,
                 }),
               })
               .then(response => {
                 if (response.ok) {
                     return response.json();
                 } else {
-                    throw new Error(`HTTP error! Status: ${response.status}`);
+                    throw new Error('Hiba');
                 }
               })
               .then(data => {
@@ -177,6 +122,8 @@ document.addEventListener('DOMContentLoaded', function() {
     });
     calendar.render();
 
+    const days = ['Vasárnap','Hétfő', 'Kedd', 'Szerda', 'Csütörtök', 'Péntek', 'Szombat'];
+
     function formatSwalText(title, start, end) {
       return '(' + title + ') ' + formatTitle(start, end)
     }
@@ -188,8 +135,8 @@ document.addEventListener('DOMContentLoaded', function() {
       var formattedStartDate = formatDate(startDate);
       var formattedEndDate = formatDate(endDate);
 
-      var startDayName = getDayName(startDate);
-      var endDayName = getDayName(endDate);
+      var startDayName = getDayName(startDate, days);
+      var endDayName = getDayName(endDate, days);
 
       if (isNextDay(startDate, endDate)) {
         return formattedStartDate + ' - ' + formattedEndDate + '\n' + '(' + startDayName + ')';
@@ -208,8 +155,7 @@ document.addEventListener('DOMContentLoaded', function() {
       return year + '-' + month + '-' + day + ' ' + hours + ':' + minutes;
     }
 
-    function getDayName(date) {
-      var days = ['Vasárnap','Hétfő', 'Kedd', 'Szerda', 'Csütörtök', 'Péntek', 'Szombat'];
+    function getDayName(date, days) {
       var dayIndex = date.getDay();
       
       return days[dayIndex];
@@ -217,5 +163,9 @@ document.addEventListener('DOMContentLoaded', function() {
 
     function isNextDay(date1, date2) {
       return date1.toDateString() === date2.toDateString();
+    }
+
+    function untilMin(starDate){
+      return new Date(starDate).toISOString().split('T')[0];
     }
 });

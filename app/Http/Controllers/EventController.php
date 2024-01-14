@@ -11,68 +11,48 @@ class EventController extends Controller
 {
     protected EventRepository $eventRepository;
     protected EventService $eventService;
-    protected EventTransformer $eventTransformer;
 
     public function __construct(
         EventRepository $eventRepository,
-        EventService $eventService,
-        EventTransformer $eventTransformer)
+        EventService $eventService)
     {
         $this->eventRepository = $eventRepository;
         $this->eventService = $eventService;
-        $this->eventTransformer = $eventTransformer;
     }
 
-    public function index()
+    function index()
     {
         $events = $this->eventRepository->getAll();
-        $transformedEvents = $this->eventTransformer->transformEventForFrontend($events);
-
-        return response()->json($transformedEvents);
+        return response()->json($events);
     }
 
-    public function createEvent(Request $request)
+    function createEvent(Request $request)
     {
         try {
             $request->validate([
                 'title' => 'required|string|max:255',
                 'start' => 'required|string|max:255',
-                'end' => 'required|string|max:255',
+                'end' => 'required|string|max:255'
             ]);
 
-            $start = $request->input('start');
-            $end = $request->input('end');
+            $eventData = [
+                'title' => $request->input('title'),
+                'start' => $request->input('start'),
+                'end' => $request->input('end'),
+                'until' => $request->input('until'),
+                'recurrance' => $request->input('recurrance')
+            ];
 
-            $slotTimeChecker = $this->eventService->isValidSlotTime($start, $end);
-
-            if($slotTimeChecker){
-                $title = $request->input('title');
-                $freq = $request->input('freq');
-                $interval = 1;
-                $specWeek = $request->input('specWeek');
-                $byDay = $request->input('byDay') ?: null;
-
-                if($this->eventService->createEvent(
-                        $title,
-                        $start,
-                        $end,
-                        $freq,
-                        $interval,
-                        $specWeek,
-                        $byDay))
-                {
-                    return response()->json([
-                        'message' => 'Sikeres bejegyzés'], 200
-                    );
-                }
+            if($this->eventService->createEvent($eventData)){
+                return response()->json([
+                    'message' => 'Sikeres bejegyzés'], 200
+                );
             }
 
             return response()->json(['message' => 'Hiba!'], 400);
-            
+
         } catch (\Exception $e) {
-            return response()->json(['message' => 'Hiba', 'details' => $e]);
+            return response()->json(['message' => $e], 400);
         }
     }
-
-    
 }

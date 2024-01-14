@@ -13,8 +13,10 @@ class CreateEventsTable extends Migration
             $table->string('title');
             $table->string('start');
             $table->string('end');
-            $table->string('rrule')->nullable();
-            $table->time('duration');
+            $table->string('until')->nullable();
+            $table->string('recurrance')->nullable();
+            $table->string('day');
+            $table->string('inside_day');
             $table->timestamps();
         });
     }
